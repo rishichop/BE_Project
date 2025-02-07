@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+    <h2 class="text-2xl font-bold mb-6">Safe Zones</h2>
+    <form method="POST" action="{{ url_for('safe_zones') }}">
+        <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="zone_name">Zone Name</label>
+            <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="zone_name" name="zone_name" type="text" placeholder="Zone Name">
+        </div>
+        <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="latitude">Latitude</label>
+            <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="latitude" name="latitude" type="text" placeholder="Latitude">
+        </div>
+        <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="longitude">Longitude</label>
+            <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="longitude" name="longitude" type="text" placeholder="Longitude">
+        </div>
+        <div class="mb-6">
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="radius">Radius (in km)</label>
+            <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="radius" name="radius" type="text" placeholder="Radius">
+        </div>
+        <div class="flex items-center justify-between">
+            <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit">Add Safe Zone</button>
+        </div>
+    </form>
+    <div class="mt-8">
+        <h3 class="text-xl font-bold mb-4">Your Safe Zones</h3>
+        <ul>
+            {% for zone in safe_zones %}
+                <li class="mb-2">{{ zone.zone_name }} - ({{ zone.latitude }}, {{ zone.longitude }}) - Radius: {{ zone.radius }} km</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}

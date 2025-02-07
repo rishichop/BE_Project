@@ -1,0 +1,11 @@
+@media (max-width: 640px) {
+    .mobile-full-width {
+        width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+    
+    .mobile-padding {
+        padding: 1rem !important;
+    }
+}

@@ -15,8 +15,8 @@ def haversine(lat1, lon1, lat2, lon2):
     return R * c
 
 # User location and safe zone
-user_lat = 40.730610  # New York City
-user_lon = -73.935242
+user_lat = 40.719518  # New York City
+user_lon = -73.915213
 safe_lat = 40.748817  # Empire State Building
 safe_lon = -73.985428
 safe_radius = 5  # 5 km radius
