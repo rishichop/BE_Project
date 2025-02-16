@@ -1,9 +1,9 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from datetime import datetime
-from bcrypt import Bcrypt
-from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
-from .app import app
+from flask_bcrypt import Bcrypt
+from itsdangerous.serializer import Serializer
+from itsdangerous.url_safe import TimedSerializer as TimedJSONWebSignatureSerializer
 import pyotp
 
 bcrypt = Bcrypt()

@@ -5,7 +5,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from bcrypt import Bcrypt
+from flask_bcrypt import Bcrypt
 from flask_mail import Mail, Message
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -72,6 +72,10 @@ def get_ip_geolocation(ip_address):
 def index():
     return redirect(url_for('login'))
 
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    return redirect(url_for('login'))
+
 @app.route('/login', methods=['GET', 'POST'])
 @limiter.limit("5 per minute")
 def login():
@@ -102,6 +106,8 @@ def login():
                 return redirect(url_for('totp_verify'))
         else:
             flash('Invalid credentials')
+    
+    print(get_ip_geolocation(request.remote_addr))
     return render_template('login.html')
 
 @app.route('/totp_verify', methods=['GET', 'POST'])
@@ -167,7 +173,7 @@ def log_authentication(user_id, status, location, totp_used=False):
 # Error handling
 @app.errorhandler(404)
 def page_not_found(e):
-    return render_template('404.html'), 404
+    return render_template('login.html'), 404
 
 if __name__ == '__main__':
     app.run(ssl_context='adhoc')  # For HTTPS testing
