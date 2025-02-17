@@ -17,6 +17,8 @@ import requests
 from models import db, User, SafeZone, AuthenticationLog
 from config import Config
 from itsdangerous import URLSafeTimedSerializer
+import subprocess
+import time
 
 # Initialize extensions
 app = Flask(__name__)
@@ -175,5 +177,23 @@ def log_authentication(user_id, status, location, totp_used=False):
 def page_not_found(e):
     return render_template('login.html'), 404
 
-if __name__ == '__main__':
-    app.run(ssl_context='adhoc')  # For HTTPS testing
+# Function to start ngrok
+def start_ngrok(port=5000):
+    # Run ngrok in the background
+    ngrok_process = subprocess.Popen(["ngrok", "http", f"--url={app.config['NGROK_LINK']}", str(port)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    print(f"\n\n\n\nngrok_link: https://{app.config['NGROK_LINK']}\n\n\n\n\n")
+
+    # Wait for Ngrok to start
+    time.sleep(3)
+    
+    return ngrok_process
+
+# Start ngrok automatically
+ngrok_process = start_ngrok(port=5000)
+
+if __name__ == "__main__":
+    try:
+        app.run(debug=True, host="0.0.0.0", port=5000)
+    finally:
+        # Kill Ngrok process when Flask stops
+        ngrok_process.terminate()
