@@ -55,7 +55,7 @@ def load_user(user_id):
 # Geolocation functions
 def get_ip_geolocation(ip_address):
     try:
-        response = requests.get(
+        response = requests.post(
             f"https://www.googleapis.com/geolocation/v1/geolocate?key={app.config['GOOGLE_MAPS_API_KEY']}",
             json={"considerIp": True}
         )
@@ -79,13 +79,15 @@ def register():
     return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
-@limiter.limit("5 per minute")
+# @limiter.limit("5 per minute")
 def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
         latitude = request.form.get('latitude')
         longitude = request.form.get('longitude')
+
+        print(username, password, latitude, longitude)
         
         user = User.query.filter_by(username=username).first()
         
