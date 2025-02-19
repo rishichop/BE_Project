@@ -2,8 +2,10 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from datetime import datetime
 from flask_bcrypt import Bcrypt
-from itsdangerous.serializer import Serializer
-from itsdangerous.url_safe import TimedSerializer as TimedJSONWebSignatureSerializer
+# from itsdangerous.serializer import Serializer
+# from itsdangerous.url_safe import TimedSerializer as TimedJSONWebSignatureSerializer
+from itsdangerous import URLSafeTimedSerializer
+from flask import current_app
 import pyotp
 
 bcrypt = Bcrypt()
@@ -22,6 +24,22 @@ class User(UserMixin, db.Model):
     last_login = db.Column(db.DateTime)
     safe_zones = db.relationship('SafeZone', backref='user', lazy=True)
     authentication_logs = db.relationship('AuthenticationLog', backref='user', lazy=True)
+    email_verified = db.Column(db.Boolean, default=False)
+
+    def get_verification_token(self, expires_sec=1800):
+        # from app import app
+        s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+        return s.dumps({'user_id': self.id})
+
+    @staticmethod
+    def verify_verification_token(token):
+        # from app import app
+        s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+        try:
+            user_id = s.loads(token, max_age=1800)['user_id']  # Expiry check
+        except:
+            return None
+        return User.query.get(user_id)
 
     def set_password(self, password):
         self.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')

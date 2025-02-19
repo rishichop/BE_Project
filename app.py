@@ -52,22 +52,58 @@ admin.add_view(AdminModelView(AuthenticationLog, db.session))
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# Geolocation functions
-def get_ip_geolocation(ip_address):
-    try:
-        response = requests.post(
-            f"https://www.googleapis.com/geolocation/v1/geolocate?key={app.config['GOOGLE_MAPS_API_KEY']}",
-            json={"considerIp": True}
-        )
-        data = response.json()
-        return {
-            'latitude': data['location']['lat'],
-            'longitude': data['location']['lng'],
-            'accuracy': data['accuracy']
-        }
-    except Exception as e:
-        app.logger.error(f"IP Geolocation error: {str(e)}")
-        return None
+# # Geolocation functions
+# def get_ip_geolocation(ip_address):
+#     # try:
+#     #     response = requests.post(
+#     #         f"https://www.googleapis.com/geolocation/v1/geolocate?key={app.config['GOOGLE_MAPS_API_KEY']}",
+#     #         json={"considerIp": True}
+#     #     )
+#     #     data = response.json()
+#     #     return {
+#     #         'latitude': data['location']['lat'],
+#     #         'longitude': data['location']['lng'],
+#     #         'accuracy': data['accuracy']
+#     #     }
+#     # except Exception as e:
+#     #     app.logger.error(f"IP Geolocation error: {str(e)}")
+#     #     return None
+#     # try:
+#     #     response = requests.get(f"https://ipinfo.io/{ip_address}/json")
+#     #     data = response.json()
+#     #     lat, lon = data["loc"].split(",")
+#     #     return {
+#     #         'ip': ip_address,
+#     #         'latitude': float(lat),
+#     #         'longitude': float(lon),
+#     #         'city': data.get("city"),
+#     #         'region': data.get("region"),
+#     #         'country': data.get("country")
+#     #     }
+#     # except Exception as e:
+#     #     app.logger.error(f"IP Geolocation error: {str(e)}")
+#     #     return None
+
+def send_verification_email(user):
+    token = user.get_verification_token()
+    msg = Message('Verify Your Email', sender='noreply@demo.com', recipients=[user.email])
+    msg.body = f'''To verify your email, visit the following link:
+{url_for('verify_email', token=token, _external=True)}
+
+If you did not make this request, simply ignore this email.
+'''
+    mail.send(msg)
+
+@app.route('/verify_email/<token>')
+def verify_email(token):
+    user = User.verify_verification_token(token)
+    if user is None:
+        flash('Invalid or expired token.')
+        return redirect(url_for('login'))
+    user.email_verified = True
+    db.session.commit()
+    flash('Email verified. You can now login.')
+    return redirect(url_for('login'))
 
 # Routes
 @app.route('/')
@@ -76,7 +112,18 @@ def index():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    return redirect(url_for('login'))
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        email = request.form['email']
+        user = User(username=username, email=email)
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+        send_verification_email(user)
+        flash('Registration successful. Please check your email to verify your account.')
+        return redirect(url_for('login'))
+    return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 # @limiter.limit("5 per minute")
@@ -86,6 +133,7 @@ def login():
         password = request.form['password']
         latitude = request.form.get('latitude')
         longitude = request.form.get('longitude')
+        print("ip: ", request.headers.get('X-Forwarded-For', request.remote_addr))
 
         print(username, password, latitude, longitude)
         
@@ -93,8 +141,11 @@ def login():
         
         if user and user.check_password(password):
             # Get location from browser or IP
-            location = {'latitude': latitude, 'longitude': longitude} if latitude and longitude \
-                else get_ip_geolocation(request.remote_addr)
+            # location = {'latitude': latitude, 'longitude': longitude} if latitude and longitude \
+            #     else get_ip_geolocation(request.headers.get('X-Forwarded-For', request.remote_addr))
+            location = {'latitude': latitude, 'longitude': longitude}
+            session['location'] = location
+            print(location)
             
             if not location:
                 flash('Could not determine your location')
@@ -104,14 +155,19 @@ def login():
                 login_user(user)
                 log_authentication(user.id, True, location)
                 return redirect(url_for('dashboard'))
-            else:
+            
+            elif user.totp_enabled:
                 session['requires_2fa'] = True
                 session['user_id'] = user.id
                 return redirect(url_for('totp_verify'))
+            
+            else:
+                flash("Not within location")
+                return redirect(url_for('login'))
         else:
             flash('Invalid credentials')
+            return redirect(url_for('login'))
     
-    print(get_ip_geolocation(request.remote_addr))
     return render_template('login.html')
 
 @app.route('/totp_verify', methods=['GET', 'POST'])
@@ -125,7 +181,7 @@ def totp_verify():
         totp_code = request.form['totp_code']
         if user and user.totp_enabled and user.verify_totp(totp_code):
             login_user(user)
-            log_authentication(user.id, True, get_ip_geolocation(), True)
+            log_authentication(user.id, True, session.get('location'), True)
             session.pop('requires_2fa', None)
             return redirect(url_for('dashboard'))
         flash('Invalid TOTP code')
@@ -140,9 +196,22 @@ def dashboard():
 @login_required
 def safe_zones():
     if request.method == 'POST':
-        # Handle safe zone creation
-        pass
-    return render_template('safe_zones.html')
+        zone_name = request.form['zone_name']
+        latitude = float(request.form['latitude'])
+        longitude = float(request.form['longitude'])
+        radius = float(request.form['radius'])
+        safe_zone = SafeZone(user_id=current_user.id, zone_name=zone_name, latitude=latitude, longitude=longitude, radius=radius)
+        db.session.add(safe_zone)
+        db.session.commit()
+        flash('Safe zone added successfully')
+    safe_zones = SafeZone.query.filter_by(user_id=current_user.id).all()
+    return render_template('safe_zones.html', safe_zones=safe_zones)
+
+@app.route('/login_history')
+@login_required
+def login_history():
+    logs = AuthenticationLog.query.filter_by(user_id=current_user.id).all()
+    return render_template('login_history.html', logs=logs)
 
 @app.route('/logout')
 @login_required
@@ -161,12 +230,14 @@ def is_within_safe_zone(user, location):
 def haversine(lat1, lon1, lat2, lon2):
     from math import radians, sin, cos, sqrt, atan2
     R = 6371.0  # Earth radius in kilometers
+    lat1, lon1, lat2, lon2 = map(float, [lat1, lon1, lat2, lon2])
     lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
     dlat = lat2 - lat1
     dlon = lon2 - lon1
     a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
     c = 2 * atan2(sqrt(a), sqrt(1 - a))
     distance = R * c
+    print("distance: ", distance)
     return distance
 
 def log_authentication(user_id, status, location, totp_used=False):
