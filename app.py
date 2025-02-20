@@ -202,7 +202,11 @@ def totp_verify():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    return render_template('dashboard.html')
+    safe_zone = session.get("safe_zone")
+    if not safe_zone:
+        safe_zone_data = None  # If no safe zone is set
+
+    return render_template('dashboard.html', safe_zone=safe_zone)
 
 @app.route('/safe_zones', methods=['GET', 'POST'])
 @login_required
@@ -236,6 +240,14 @@ def is_within_safe_zone(user, location):
     for zone in user.safe_zones:
         if haversine(location['latitude'], location['longitude'], 
                     zone.latitude, zone.longitude) <= zone.radius:
+            
+            session["safe_zone"] = {
+            "user_lat": float(session.get("location")["latitude"]),
+            "user_lng": float(session.get("location")["longitude"]),
+            "latitude": zone.latitude,
+            "longitude": zone.longitude,
+            "radius": zone.radius
+        }
             return True
     return False
 

@@ -4,5 +4,30 @@
 <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
     <h2 class="text-2xl font-bold mb-6">Dashboard</h2>
     <p class="text-gray-700">Welcome, {{ current_user.username }}!</p>
+
+    <button class="mt-4 px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600"
+        onclick="openLocationModal()">Check Safe Zone</button>
 </div>
+
+<!-- JSON Safe Zone Data -->
+<script type="application/json" id="safeZoneData">
+    {{ safe_zone | tojson | safe }}
+</script>
+
+<!-- Modal -->
+<div id="locationModal" class="fixed inset-0 flex items-center justify-center hidden bg-black bg-opacity-50">
+    <div class="bg-white p-6 rounded-lg shadow-lg w-96">
+        <h3 class="text-xl font-semibold mb-4">Your Location in Safe Zone</h3>
+        <div id="map" class="h-64 w-full rounded-lg border"></div>
+        <button class="mt-4 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+            onclick="closeLocationModal()">Close</button>
+    </div>
+</div>
+
+<!-- Include JavaScript File -->
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+
+<!-- Include Leaflet Map Library -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 {% endblock %}
