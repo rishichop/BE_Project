@@ -12,6 +12,7 @@ from flask_limiter.util import get_remote_address
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
 from flask_wtf.csrf import CSRFProtect
+from flask_cors import CORS
 import pyotp
 import requests
 from models import db, User, SafeZone, AuthenticationLog
@@ -23,7 +24,7 @@ import time
 # Initialize extensions
 app = Flask(__name__)
 app.config.from_object(Config)
-
+CORS(app)  # Allow all origins (for testing)
 csrf = CSRFProtect(app)
 bcrypt = Bcrypt(app)
 db.init_app(app)
@@ -93,6 +94,17 @@ def send_verification_email(user):
 If you did not make this request, simply ignore this email.
 '''
     mail.send(msg)
+
+@app.route('/update_location', methods=['GET', 'POST'])
+def update_location():
+    data = request.get_json()
+    latitude = data.get('latitude')
+    longitude = data.get('longitude')
+
+    # Store location in session, database, or logs
+    print(f"Received Location: {latitude}, {longitude}")
+
+    return jsonify({"status": "success", "latitude": latitude, "longitude": longitude})
 
 @app.route('/verify_email/<token>')
 def verify_email(token):
