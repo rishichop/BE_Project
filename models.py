@@ -55,10 +55,14 @@ class User(UserMixin, db.Model):
 
     def verify_totp(self, token):
         return pyotp.TOTP(self.totp_secret).verify(token)
+    
+    def __str__(self):
+        return self.username
 
 class SafeZone(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    s_user = db.relationship('User', backref='safezones')  # Relationship to User model
     zone_name = db.Column(db.String(120), nullable=False)
     latitude = db.Column(db.Float, nullable=False)
     longitude = db.Column(db.Float, nullable=False)

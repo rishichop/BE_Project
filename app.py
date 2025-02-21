@@ -45,9 +45,39 @@ admin = Admin(app, name='GeoMFA Admin', template_mode='bootstrap3')
 class AdminModelView(ModelView):
     def is_accessible(self):
         return current_user.is_authenticated and current_user.is_admin
-admin.add_view(AdminModelView(User, db.session))
-admin.add_view(AdminModelView(SafeZone, db.session))
-admin.add_view(AdminModelView(AuthenticationLog, db.session))
+    
+class UserModelView(ModelView):
+    can_create = False
+
+    def is_accessible(self):
+        return current_user.is_authenticated and current_user.is_admin
+    
+class SafeZoneView(ModelView):
+    form_columns = ('user', 'zone_name', 'latitude', 'longitude', 'radius')
+    column_list = ('s_user.username', 'zone_name', 'latitude', 'longitude', 'radius')
+    column_searchable_list = ('zone_name',)
+    column_filters = ('user_id', 'zone_name')
+
+    # Enable searchable dropdown for users
+    form_ajax_refs = {
+        'user': {
+            'fields': ['username'],  # Search by username
+            'page_size': 10
+        }
+    }
+
+    def is_accessible(self):
+        return current_user.is_authenticated and current_user.is_admin
+    
+class LogModelView(ModelView):
+    can_create = False
+
+    def is_accessible(self):
+        return current_user.is_authenticated and current_user.is_admin
+
+admin.add_view(UserModelView(User, db.session))
+admin.add_view(SafeZoneView(SafeZone, db.session))
+admin.add_view(LogModelView(AuthenticationLog, db.session))
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -95,16 +125,16 @@ If you did not make this request, simply ignore this email.
 '''
     mail.send(msg)
 
-@app.route('/update_location', methods=['GET', 'POST'])
-def update_location():
-    data = request.get_json()
-    latitude = data.get('latitude')
-    longitude = data.get('longitude')
+# @app.route('/update_location', methods=['GET', 'POST'])
+# def update_location():
+#     data = request.get_json()
+#     latitude = data.get('latitude')
+#     longitude = data.get('longitude')
 
-    # Store location in session, database, or logs
-    print(f"Received Location: {latitude}, {longitude}")
+#     # Store location in session, database, or logs
+#     print(f"Received Location: {latitude}, {longitude}")
 
-    return jsonify({"status": "success", "latitude": latitude, "longitude": longitude})
+#     return jsonify({"status": "success", "latitude": latitude, "longitude": longitude})
 
 @app.route('/verify_email/<token>')
 def verify_email(token):
@@ -128,13 +158,22 @@ def register():
         username = request.form['username']
         password = request.form['password']
         email = request.form['email']
+
+        # Check if the username already exists
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user:
+            flash('Username already exists. Please choose a different one.', 'danger')
+            return redirect(url_for('register'))
+
         user = User(username=username, email=email)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
         send_verification_email(user)
-        flash('Registration successful. Please check your email to verify your account.')
+        
+        flash('Registration successful. Please check your email to verify your account.', 'success')
         return redirect(url_for('login'))
+
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -159,8 +198,8 @@ def login():
             session['location'] = location
             print(location)
             
-            if not location:
-                flash('Could not determine your location')
+            if not location or location['latitude'] == '' or location['longitude'] == '':
+                flash('Could not determine your location.\nMake sure your gps is on.')
                 return redirect(url_for('login'))
             
             if is_within_safe_zone(user, location):
@@ -175,6 +214,7 @@ def login():
             
             else:
                 flash("Not within location")
+                log_authentication(user.id, False, location)
                 return redirect(url_for('login'))
         else:
             flash('Invalid credentials')
@@ -204,7 +244,7 @@ def totp_verify():
 def dashboard():
     safe_zone = session.get("safe_zone")
     if not safe_zone:
-        safe_zone_data = None  # If no safe zone is set
+        safe_zone = None  # If no safe zone is set
 
     return render_template('dashboard.html', safe_zone=safe_zone)
 

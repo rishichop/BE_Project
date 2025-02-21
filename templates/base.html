@@ -10,8 +10,15 @@
 <body class="bg-gray-100">
     <nav class="bg-blue-600 p-4 text-white">
         <div class="container mx-auto flex justify-between items-center">
-            <a href="{{ url_for('dashboard') }}" class="text-xl font-bold">Geo-Enabled MFA</a>
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('dashboard') }}" class="text-xl font-bold">Geo-Enabled MFA</a>
+            {% else %}
+                <a href="{{ url_for('login') }}" class="text-xl font-bold">Geo-Enabled MFA</a>
+            {% endif %}
             <div>
+                {% if current_user.is_admin %}
+                <a href="/admin" class="mx-2">Admin Panel</a>
+                {% endif %}
                 {% if current_user.is_authenticated %}
                     <a href="{{ url_for('safe_zones') }}" class="mx-2">Safe Zones</a>
                     <a href="{{ url_for('login_history') }}" class="mx-2">Login History</a>
