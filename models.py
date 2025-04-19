@@ -47,11 +47,10 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return bcrypt.check_password_hash(self.password_hash, password)
 
-    def get_totp_uri(self):
-        return pyotp.TOTP(self.totp_secret).provisioning_uri(
-            name=self.username,
-            issuer_name="GeoMFA"
-        )
+    def get_totp(self):
+        secret = pyotp.TOTP('JBSWY3DPEHPK3PXP', digits=4, interval=60).now()
+        self.totp_secret = secret
+        return secret
 
     def verify_totp(self, token):
         return pyotp.TOTP(self.totp_secret).verify(token)

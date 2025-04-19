@@ -125,6 +125,11 @@ If you did not make this request, simply ignore this email.
 '''
     mail.send(msg)
 
+def send_totp(user, totp):
+    msg = Message('Totp', sender='noreply@demo.com', recipients=[user.email])
+    msg.body = f'''Totp of login Time limit: 60 secs {totp}'''
+    mail.send(msg)
+
 # @app.route('/update_location', methods=['GET', 'POST'])
 # def update_location():
 #     data = request.get_json()
@@ -197,6 +202,14 @@ def login():
             location = {'latitude': latitude, 'longitude': longitude}
             session['location'] = location
             print(location)
+
+            if user.totp_enabled:
+                session['requires_2fa'] = True
+                session['user_id'] = user.id
+                totp = user.get_totp()
+                send_totp(user, totp)
+                print(totp)
+                return redirect(url_for('totp_verify'))
             
             if not location or location['latitude'] == '' or location['longitude'] == '':
                 flash('Could not determine your location.\nMake sure your gps is on.')
@@ -206,11 +219,6 @@ def login():
                 login_user(user)
                 log_authentication(user.id, True, location)
                 return redirect(url_for('dashboard'))
-            
-            elif user.totp_enabled:
-                session['requires_2fa'] = True
-                session['user_id'] = user.id
-                return redirect(url_for('totp_verify'))
             
             else:
                 flash("Not within location")
