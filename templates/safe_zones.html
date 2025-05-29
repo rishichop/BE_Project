@@ -4,6 +4,7 @@
 <div class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
     <h2 class="text-2xl font-bold mb-6">Safe Zones</h2>
     <form method="POST" action="{{ url_for('safe_zones') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="mb-4">
             <label class="block text-gray-700 text-sm font-bold mb-2" for="zone_name">Zone Name</label>
             <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="zone_name" name="zone_name" type="text" placeholder="Zone Name">
