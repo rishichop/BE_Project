@@ -74,3 +74,14 @@ class AuthenticationLog(db.Model):
     status = db.Column(db.String(20), nullable=False)
     location_used = db.Column(db.String(120))
     totp_used = db.Column(db.Boolean, default=False)
+
+class PendingSafeZone(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    zone_name = db.Column(db.String(100), nullable=False)
+    latitude = db.Column(db.Float, nullable=False)
+    longitude = db.Column(db.Float, nullable=False)
+    radius = db.Column(db.Float, nullable=False)  # in meters
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref=db.backref('pending_safe_zones', lazy=True))
