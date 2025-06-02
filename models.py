@@ -48,12 +48,19 @@ class User(UserMixin, db.Model):
         return bcrypt.check_password_hash(self.password_hash, password)
 
     def get_totp(self):
-        secret = pyotp.TOTP('JBSWY3DPEHPK3PXP', digits=4, interval=60).now()
-        self.totp_secret = secret
-        return secret
+        if not self.totp_secret:
+            self.totp_secret = pyotp.random_base32()
+            db.session.commit()
+        
+        totp = pyotp.TOTP(self.totp_secret, digits=4, interval=60)
+        return totp.now()
 
     def verify_totp(self, token):
-        return pyotp.TOTP(self.totp_secret).verify(token)
+        if not self.totp_secret:
+            return False  # No secret stored
+
+        totp = pyotp.TOTP(self.totp_secret, digits=4, interval=60)
+        return totp.verify(token)
     
     def __str__(self):
         return self.username
