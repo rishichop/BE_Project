@@ -18,7 +18,7 @@
             <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="longitude" name="longitude" type="text" placeholder="Longitude">
         </div>
         <div class="mb-6">
-            <label class="block text-gray-700 text-sm font-bold mb-2" for="radius">Radius (in km)</label>
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="radius">Radius (in m)</label>
             <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="radius" name="radius" type="text" placeholder="Radius">
         </div>
         <div class="flex items-center justify-between">
@@ -29,7 +29,7 @@
         <h3 class="text-xl font-bold mb-4">Your Safe Zones</h3>
         <ul>
             {% for zone in safe_zones %}
-                <li class="mb-2">{{ zone.zone_name }} - ({{ zone.latitude }}, {{ zone.longitude }}) - Radius: {{ zone.radius }} m</li>
+                <li class="mb-2">{{ zone.zone_name }} - ({{ zone.latitude }}, {{ zone.longitude }}) - Radius: {{ zone.radius * 1000 }} m</li>
             {% endfor %}
         </ul>
     </div>

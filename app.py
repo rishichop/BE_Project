@@ -83,6 +83,48 @@ admin.add_view(LogModelView(AuthenticationLog, db.session))
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+@app.route('/admin/pending-safezones')
+@login_required
+def pending_safezones():
+    if not current_user.is_admin:
+        flash("Access denied: Admins only.", "danger")
+        return redirect(url_for('index'))
+
+    zones = PendingSafeZone.query.all()
+    return render_template('pending_safezones.html', zones=zones)
+
+@app.route('/admin/approve-safezone/<int:zone_id>', methods=['POST'])
+@login_required
+def approve_safezone(zone_id):
+    if not current_user.is_admin:
+        flash("Access denied.", "danger")
+        return redirect(url_for('index'))
+
+    zone = PendingSafeZone.query.get_or_404(zone_id)
+    user = User.query.get(zone.user_id)
+
+    new_zone = SafeZone(
+        user_id=zone.user_id,
+        zone_name=zone.zone_name,
+        latitude=zone.latitude,
+        longitude=zone.longitude,
+        radius=zone.radius
+    )
+    db.session.add(new_zone)
+    db.session.delete(zone)
+    db.session.commit()
+
+    # Send approval email
+    if user and user.email:
+        msg = Message(subject="Safe Zone Approved",
+                      sender="no-reply@example.com",
+                      recipients=[user.email])
+        msg.body = f"Hello {user.username},\n\nYour safe zone '{zone.zone_name}' has been approved by the admin."
+        mail.send(msg)
+
+    flash("Safe zone approved and user notified.", "success")
+    return redirect(url_for('pending_safezones'))
+
 # # Geolocation functions
 # def get_ip_geolocation(ip_address):
 #     # try:
@@ -115,15 +157,15 @@ def load_user(user_id):
 #     #     app.logger.error(f"IP Geolocation error: {str(e)}")
 #     #     return None
 
-def send_verification_email(user):
-    token = user.get_verification_token()
-    msg = Message('Verify Your Email', sender='noreply@demo.com', recipients=[user.email])
-    msg.body = f'''To verify your email, visit the following link:
-{url_for('verify_email', token=token, _external=True)}
+# def send_verification_email(user):
+#     token = user.get_verification_token()
+#     msg = Message('Verify Your Email', sender='noreply@demo.com', recipients=[user.email])
+#     msg.body = f'''To verify your email, visit the following link:
+# {url_for('verify_email', token=token, _external=True)}
 
-If you did not make this request, simply ignore this email.
-'''
-    mail.send(msg)
+# If you did not make this request, simply ignore this email.
+# '''
+#     mail.send(msg)
 
 def send_totp(user, totp):
     msg = Message('Totp', sender='noreply@demo.com', recipients=[user.email])
@@ -141,16 +183,16 @@ def send_totp(user, totp):
 
 #     return jsonify({"status": "success", "latitude": latitude, "longitude": longitude})
 
-@app.route('/verify_email/<token>')
-def verify_email(token):
-    user = User.verify_verification_token(token)
-    if user is None:
-        flash('Invalid or expired token.')
-        return redirect(url_for('login'))
-    user.email_verified = True
-    db.session.commit()
-    flash('Email verified. You can now login.')
-    return redirect(url_for('login'))
+# @app.route('/verify_email/<token>')
+# def verify_email(token):
+#     user = User.verify_verification_token(token)
+#     if user is None:
+#         flash('Invalid or expired token.')
+#         return redirect(url_for('login'))
+#     user.email_verified = True
+#     db.session.commit()
+#     flash('Email verified. You can now login.')
+#     return redirect(url_for('login'))
 
 # Routes
 @app.route('/')
@@ -190,6 +232,8 @@ def register():
 
         except Exception as e:
             db.session.rollback()
+            db.session.delete(user)
+            db.session.commit()
             app.logger.error(f"Registration error: {e}")
             flash(f'{e}. Please try again.', 'danger')
             return redirect(url_for('register'))

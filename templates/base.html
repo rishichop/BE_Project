@@ -18,6 +18,7 @@
             <div>
                 {% if current_user.is_admin %}
                 <a href="/admin" class="mx-2">Admin Panel</a>
+                <a href="{{ url_for('pending_safezones') }}" class="mx-2">Pending Safezones</a>
                 {% endif %}
                 {% if current_user.is_authenticated %}
                     <a href="{{ url_for('safe_zones') }}" class="mx-2">Safe Zones</a>

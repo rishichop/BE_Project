@@ -5,8 +5,14 @@
     <h2 class="text-2xl font-bold mb-6">Dashboard</h2>
     <p class="text-gray-700">Welcome, {{ current_user.username }}!</p>
 
-    <button class="mt-4 px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600"
-        onclick="openLocationModal()">Check Safe Zone</button>
+    <button
+        class="text-blue-600 underline hover:text-blue-800 view-map-btn"
+        data-lat="{{ safe_zone.latitude }}"
+        data-lng="{{ safe_zone.longitude }}"
+        data-radius="{{ safe_zone.radius }}"
+        data-name="{{ safe_zone.zone_name|e }}">
+        View Map
+    </button>
 </div>
 
 <!-- JSON Safe Zone Data -->
@@ -14,20 +20,48 @@
     {{ safe_zone | tojson | safe }}
 </script>
 
-<!-- Modal -->
-<div id="locationModal" class="fixed inset-0 flex items-center justify-center hidden bg-black bg-opacity-50">
-    <div class="bg-white p-6 rounded-lg shadow-lg w-96">
-        <h3 class="text-xl font-semibold mb-4">Your Location in Safe Zone</h3>
-        <div id="map" class="h-64 w-full rounded-lg border"></div>
-        <button class="mt-4 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
-            onclick="closeLocationModal()">Close</button>
-    </div>
+<!-- Map Modal -->
+<div id="mapModal" class="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+<div class="bg-white p-4 rounded shadow-lg w-3/4 h-3/4 relative">
+    <button onclick="document.getElementById('mapModal').classList.add('hidden')"
+    class="absolute top-2 right-2 bg-red-500 text-white px-3 py-1 rounded">Close</button>
+    <div id="map" class="w-full h-full rounded"></div>
+</div>
 </div>
 
 <!-- Include JavaScript File -->
-<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<!-- <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script> -->
 
 <!-- Include Leaflet Map Library -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+document.querySelectorAll('.view-map-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      const lat = parseFloat(button.dataset.lat);
+      const lng = parseFloat(button.dataset.lng);
+      const radius = parseFloat(button.dataset.radius);
+      const name = button.dataset.name;
+
+      const modal = document.getElementById('mapModal');
+      modal.classList.remove('hidden');
+
+      const mapContainer = document.getElementById('map');
+      mapContainer.innerHTML = ""; // Reset previous map
+
+      const map = L.map('map').setView([lat, lng], 15);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+
+      L.marker([lat, lng]).addTo(map).bindPopup(name).openPopup();
+      L.circle([lat, lng], {
+        color: 'blue',
+        fillColor: '#aaddff',
+        fillOpacity: 0.3,
+        radius: radius * 1000
+      }).addTo(map);
+    });
+  });
+  </script>
 {% endblock %}
