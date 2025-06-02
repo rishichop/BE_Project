@@ -15,7 +15,7 @@ from flask_wtf.csrf import CSRFProtect
 from flask_cors import CORS
 import pyotp
 import requests
-from models import db, User, SafeZone, AuthenticationLog
+from models import db, User, SafeZone, AuthenticationLog, PendingSafeZone
 from config import Config
 from itsdangerous import URLSafeTimedSerializer
 import subprocess
@@ -160,92 +160,107 @@ def index():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        email = request.form['email']
+        try:
+            username = request.form['username']
+            password = request.form['password']
+            email = request.form['email']
 
-        # Check if the username already exists
-        existing_user = User.query.filter_by(username=username).first()
-        if existing_user:
-            flash('Username already exists. Please choose a different one.', 'danger')
+            existing_user = User.query.filter_by(username=username).first()
+            if existing_user:
+                flash('Username already exists. Please choose a different one.', 'danger')
+                return redirect(url_for('register'))
+
+            user = User(username=username, email=email)
+            user.set_password(password)
+            db.session.add(user)
+            db.session.commit()
+
+            pending_zone = PendingSafeZone(
+                user_id=user.id,
+                zone_name=request.form['zone_name'],
+                latitude=float(request.form['latitude']),
+                longitude=float(request.form['longitude']),
+                radius=float(request.form['radius']) / 1000
+            )
+            db.session.add(pending_zone)
+            db.session.commit()
+
+            flash('Registration successful. Your safe zone is pending approval by the admin.', 'info')
+            return redirect(url_for('login'))
+
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Registration error: {e}")
+            flash(f'{e}. Please try again.', 'danger')
             return redirect(url_for('register'))
-
-        user = User(username=username, email=email)
-        user.set_password(password)
-        db.session.add(user)
-        db.session.commit()
-        send_verification_email(user)
-        
-        flash('Registration successful. Please check your email to verify your account.', 'success')
-        return redirect(url_for('login'))
 
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
-# @limiter.limit("5 per minute")
 def login():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        latitude = request.form.get('latitude')
-        longitude = request.form.get('longitude')
-        print("ip: ", request.headers.get('X-Forwarded-For', request.remote_addr))
+        try:
+            username = request.form['username']
+            password = request.form['password']
+            latitude = request.form.get('latitude')
+            longitude = request.form.get('longitude')
 
-        print(username, password, latitude, longitude)
-        
-        user = User.query.filter_by(username=username).first()
-        
-        if user and user.check_password(password):
-            # Get location from browser or IP
-            # location = {'latitude': latitude, 'longitude': longitude} if latitude and longitude \
-            #     else get_ip_geolocation(request.headers.get('X-Forwarded-For', request.remote_addr))
-            location = {'latitude': latitude, 'longitude': longitude}
-            session['location'] = location
-            print(location)
+            user = User.query.filter_by(username=username).first()
+            if user and user.check_password(password):
+                location = {'latitude': latitude, 'longitude': longitude}
+                session['location'] = location
 
-            if user.totp_enabled:
-                session['requires_2fa'] = True
-                session['user_id'] = user.id
-                totp = user.get_totp()
-                send_totp(user, totp)
-                print(totp)
-                return redirect(url_for('totp_verify'))
-            
-            if not location or location['latitude'] == '' or location['longitude'] == '':
-                flash('Could not determine your location.\nMake sure your gps is on.')
-                return redirect(url_for('login'))
-            
-            if is_within_safe_zone(user, location):
-                login_user(user)
-                log_authentication(user.id, True, location)
-                return redirect(url_for('dashboard'))
-            
+                if user.totp_enabled:
+                    session['requires_2fa'] = True
+                    session['user_id'] = user.id
+                    totp = user.get_totp()
+                    send_totp(user, totp)
+                    return redirect(url_for('totp_verify'))
+
+                if not location or location['latitude'] == '' or location['longitude'] == '':
+                    flash('Could not determine your location. Make sure your GPS is on.', 'warning')
+                    return redirect(url_for('login'))
+
+                if is_within_safe_zone(user, location):
+                    login_user(user)
+                    log_authentication(user.id, True, location)
+                    return redirect(url_for('dashboard'))
+                else:
+                    flash("You are not within your safe zone.", 'danger')
+                    log_authentication(user.id, False, location)
+                    return redirect(url_for('login'))
             else:
-                flash("Not within location")
-                log_authentication(user.id, False, location)
+                flash('Invalid credentials', 'danger')
                 return redirect(url_for('login'))
-        else:
-            flash('Invalid credentials')
+        except Exception as e:
+            app.logger.error(f"Login error: {e}")
+            flash(f'{e}. Please try again.', 'danger')
             return redirect(url_for('login'))
-    
+
     return render_template('login.html')
 
 @app.route('/totp_verify', methods=['GET', 'POST'])
 def totp_verify():
     if not session.get('requires_2fa'):
         return redirect(url_for('login'))
-    
+
     user = User.query.get(session['user_id'])
-    
+
     if request.method == 'POST':
-        totp_code = request.form['totp_code']
-        if user and user.totp_enabled and user.verify_totp(totp_code):
-            login_user(user)
-            log_authentication(user.id, True, session.get('location'), True)
-            session.pop('requires_2fa', None)
-            return redirect(url_for('dashboard'))
-        flash('Invalid TOTP code')
+        try:
+            totp_code = request.form['totp_code']
+            if user and user.totp_enabled and user.verify_totp(totp_code):
+                login_user(user)
+                log_authentication(user.id, True, session.get('location'), True)
+                session.pop('requires_2fa', None)
+                return redirect(url_for('dashboard'))
+            flash('Invalid TOTP code', 'danger')
+        except Exception as e:
+            app.logger.error(f"TOTP verification error: {e}")
+            flash(f'{e}.', 'danger')
+
     return render_template('totp_setup.html', user=user)
+
 
 @app.route('/dashboard')
 @login_required
@@ -260,14 +275,27 @@ def dashboard():
 @login_required
 def safe_zones():
     if request.method == 'POST':
-        zone_name = request.form['zone_name']
-        latitude = float(request.form['latitude'])
-        longitude = float(request.form['longitude'])
-        radius = float(request.form['radius'])
-        safe_zone = SafeZone(user_id=current_user.id, zone_name=zone_name, latitude=latitude, longitude=longitude, radius=radius)
-        db.session.add(safe_zone)
-        db.session.commit()
-        flash('Safe zone added successfully')
+        try:
+            zone_name = request.form['zone_name']
+            latitude = float(request.form['latitude'])
+            longitude = float(request.form['longitude'])
+            radius = float(request.form['radius']) / 1000
+
+            safe_zone = SafeZone(
+                user_id=current_user.id,
+                zone_name=zone_name,
+                latitude=latitude,
+                longitude=longitude,
+                radius=radius
+            )
+            db.session.add(safe_zone)
+            db.session.commit()
+            flash('Safe zone added successfully', 'success')
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Safe zone creation error: {e}")
+            flash(f'{e}. Please try again.', 'danger')
+
     safe_zones = SafeZone.query.filter_by(user_id=current_user.id).all()
     return render_template('safe_zones.html', safe_zones=safe_zones)
 
@@ -313,9 +341,19 @@ def haversine(lat1, lon1, lat2, lon2):
     return distance
 
 def log_authentication(user_id, status, location, totp_used=False):
-    log = AuthenticationLog(user_id=user_id, status='success' if status else 'failed', location_used=f"{location['latitude']}, {location['longitude']}", totp_used=totp_used)
-    db.session.add(log)
-    db.session.commit()
+    try:
+        log = AuthenticationLog(
+            user_id=user_id,
+            status='success' if status else 'failed',
+            location_used=f"{location['latitude']}, {location['longitude']}",
+            totp_used=totp_used
+        )
+        db.session.add(log)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Failed to log authentication: {e}")
+
 
 # Error handling
 @app.errorhandler(404)

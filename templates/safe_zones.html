@@ -29,7 +29,7 @@
         <h3 class="text-xl font-bold mb-4">Your Safe Zones</h3>
         <ul>
             {% for zone in safe_zones %}
-                <li class="mb-2">{{ zone.zone_name }} - ({{ zone.latitude }}, {{ zone.longitude }}) - Radius: {{ zone.radius }} km</li>
+                <li class="mb-2">{{ zone.zone_name }} - ({{ zone.latitude }}, {{ zone.longitude }}) - Radius: {{ zone.radius }} m</li>
             {% endfor %}
         </ul>
     </div>
