@@ -313,7 +313,7 @@ def dashboard():
     if not safe_zone:
         safe_zone = None  # If no safe zone is set
 
-    return render_template('dashboard.html', safe_zone=safe_zone)
+    return render_template('dashboard.html', safe_zone=safe_zone, user_location=session.get('location', {'latitude': 0, 'longitude': 0}))
 
 @app.route('/safe_zones', methods=['GET', 'POST'])
 @login_required

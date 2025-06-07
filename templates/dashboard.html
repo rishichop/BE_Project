@@ -10,7 +10,9 @@
         data-lat="{{ safe_zone.latitude }}"
         data-lng="{{ safe_zone.longitude }}"
         data-radius="{{ safe_zone.radius }}"
-        data-name="{{ safe_zone.zone_name|e }}">
+        data-name="{{ safe_zone.zone_name|e }}"
+        data-usrlat="{{ user_location.latitude }}"
+        data-usrlon="{{ user_location.longitude }}">
         View Map
     </button>
 </div>
@@ -36,24 +38,28 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
-document.querySelectorAll('.view-map-btn').forEach(button => {
+
+  document.querySelectorAll('.view-map-btn').forEach(button => {
     button.addEventListener('click', () => {
       const lat = parseFloat(button.dataset.lat);
       const lng = parseFloat(button.dataset.lng);
       const radius = parseFloat(button.dataset.radius);
       const name = button.dataset.name;
+      const userLat = parseFloat(button.dataset.usrlat)
+      const userLng = parseFloat(button.dataset.usrlon)
 
       const modal = document.getElementById('mapModal');
       modal.classList.remove('hidden');
 
       const mapContainer = document.getElementById('map');
-      mapContainer.innerHTML = ""; // Reset previous map
+      mapContainer.innerHTML = ""; // Clear previous map
 
       const map = L.map('map').setView([lat, lng], 15);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
       }).addTo(map);
 
+      // Safe zone
       L.marker([lat, lng]).addTo(map).bindPopup(name).openPopup();
       L.circle([lat, lng], {
         color: 'blue',
@@ -61,7 +67,17 @@ document.querySelectorAll('.view-map-btn').forEach(button => {
         fillOpacity: 0.3,
         radius: radius * 1000
       }).addTo(map);
+
+      // Current user location (from session)
+      L.marker([userLat, userLng], {
+        icon: L.icon({
+          iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
+          iconSize: [32, 32],
+          iconAnchor: [16, 32],
+          popupAnchor: [0, -30]
+        })
+      }).addTo(map).bindPopup("You are here");
     });
   });
-  </script>
+</script>
 {% endblock %}
