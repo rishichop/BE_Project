@@ -5,7 +5,6 @@ load_dotenv()
 
 class Config:
     SECRET_KEY = os.getenv('SECRET_KEY')
-    # Fix: Replace 'postgres://' with 'postgresql://'
     raw_db_url = os.getenv('DATABASE_URL', '')
     if raw_db_url.startswith("postgres://"):
         raw_db_url = raw_db_url.replace("postgres://", "postgresql://", 1)

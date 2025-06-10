@@ -22,10 +22,9 @@ from itsdangerous import URLSafeTimedSerializer
 import subprocess
 import time
 
-# Initialize extensions
 app = Flask(__name__)
 app.config.from_object(Config)
-CORS(app)  # Allow all origins (for testing)
+CORS(app)
 csrf = CSRFProtect(app)
 bcrypt = Bcrypt(app)
 db.init_app(app)
@@ -72,10 +71,10 @@ class SafeZoneView(ModelView):
     column_searchable_list = ('zone_name',)
     column_filters = ('user_id', 'zone_name')
 
-    # Enable searchable dropdown for users
+    
     form_ajax_refs = {
         'user': {
-            'fields': ['username'],  # Search by username
+            'fields': ['username'],
             'page_size': 10
         }
     }
@@ -129,7 +128,6 @@ def approve_safezone(zone_id):
     db.session.delete(zone)
     db.session.commit()
 
-    # Send approval email
     if user and user.email:
         msg = Message(subject="Safe Zone Approved",
                       sender="no-reply@example.com",
@@ -140,74 +138,10 @@ def approve_safezone(zone_id):
     flash("Safe zone approved and user notified.", "success")
     return redirect(url_for('pending_safezones'))
 
-# # Geolocation functions
-# def get_ip_geolocation(ip_address):
-#     # try:
-#     #     response = requests.post(
-#     #         f"https://www.googleapis.com/geolocation/v1/geolocate?key={app.config['GOOGLE_MAPS_API_KEY']}",
-#     #         json={"considerIp": True}
-#     #     )
-#     #     data = response.json()
-#     #     return {
-#     #         'latitude': data['location']['lat'],
-#     #         'longitude': data['location']['lng'],
-#     #         'accuracy': data['accuracy']
-#     #     }
-#     # except Exception as e:
-#     #     app.logger.error(f"IP Geolocation error: {str(e)}")
-#     #     return None
-#     # try:
-#     #     response = requests.get(f"https://ipinfo.io/{ip_address}/json")
-#     #     data = response.json()
-#     #     lat, lon = data["loc"].split(",")
-#     #     return {
-#     #         'ip': ip_address,
-#     #         'latitude': float(lat),
-#     #         'longitude': float(lon),
-#     #         'city': data.get("city"),
-#     #         'region': data.get("region"),
-#     #         'country': data.get("country")
-#     #     }
-#     # except Exception as e:
-#     #     app.logger.error(f"IP Geolocation error: {str(e)}")
-#     #     return None
-
-# def send_verification_email(user):
-#     token = user.get_verification_token()
-#     msg = Message('Verify Your Email', sender='noreply@demo.com', recipients=[user.email])
-#     msg.body = f'''To verify your email, visit the following link:
-# {url_for('verify_email', token=token, _external=True)}
-
-# If you did not make this request, simply ignore this email.
-# '''
-#     mail.send(msg)
-
 def send_totp(user, totp):
     msg = Message('Totp', sender='noreply@demo.com', recipients=[user.email])
     msg.body = f'''Totp of login Time limit: 60 secs {totp}'''
     mail.send(msg)
-
-# @app.route('/update_location', methods=['GET', 'POST'])
-# def update_location():
-#     data = request.get_json()
-#     latitude = data.get('latitude')
-#     longitude = data.get('longitude')
-
-#     # Store location in session, database, or logs
-#     print(f"Received Location: {latitude}, {longitude}")
-
-#     return jsonify({"status": "success", "latitude": latitude, "longitude": longitude})
-
-# @app.route('/verify_email/<token>')
-# def verify_email(token):
-#     user = User.verify_verification_token(token)
-#     if user is None:
-#         flash('Invalid or expired token.')
-#         return redirect(url_for('login'))
-#     user.email_verified = True
-#     db.session.commit()
-#     flash('Email verified. You can now login.')
-#     return redirect(url_for('login'))
 
 # Routes
 @app.route('/')
@@ -326,7 +260,7 @@ def totp_verify():
 def dashboard():
     safe_zone = session.get("safe_zone")
     if not safe_zone:
-        safe_zone = None  # If no safe zone is set
+        safe_zone = None
 
     return render_template('dashboard.html', safe_zone=safe_zone, user_location=session.get('location', {'latitude': 0, 'longitude': 0}))
 
@@ -388,7 +322,7 @@ def is_within_safe_zone(user, location):
 
 def haversine(lat1, lon1, lat2, lon2):
     from math import radians, sin, cos, sqrt, atan2
-    R = 6371.0  # Earth radius in kilometers
+    R = 6371.0
     lat1, lon1, lat2, lon2 = map(float, [lat1, lon1, lat2, lon2])
     lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
     dlat = lat2 - lat1
@@ -421,11 +355,8 @@ def page_not_found(e):
 
 # Function to start ngrok
 def start_ngrok(port=5000):
-    # Run ngrok in the background
     ngrok_process = subprocess.Popen(["ngrok", "http", f"--url={app.config['NGROK_LINK']}", str(port)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     print(f"\n\n\n\nngrok_link: https://{app.config['NGROK_LINK']}\n\n\n\n\n")
-
-    # Wait for Ngrok to start
     time.sleep(3)
     
     return ngrok_process

@@ -1,3 +1,0 @@
-Totp not working
-
-for laptops fetching location data
