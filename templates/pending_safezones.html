@@ -45,13 +45,20 @@
   </div>
 
   <!-- Map Modal -->
-  <div id="mapModal" class="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
-    <div class="bg-white p-4 rounded shadow-lg w-3/4 h-3/4 relative">
-        <button onclick="document.getElementById('mapModal').classList.add('hidden')"
-        class="absolute top-2 right-2 bg-red-500 text-white px-3 py-1 rounded">Close</button>
-        <div id="map" class="w-full h-full rounded"></div>
-    </div>
+<div id="mapModal" class="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+  <div class="bg-white p-4 rounded shadow-lg w-3/4 h-3/4 relative flex flex-col">
+    
+    <!-- Close Button (stays on top) -->
+    <button onclick="document.getElementById('mapModal').classList.add('hidden')"
+            class="absolute top-2 right-2 bg-red-500 text-white px-3 py-1 rounded z-10">
+      Close
+    </button>
+
+    <!-- Map Container -->
+    <div id="map" class="flex-grow rounded mt-8"></div>
+
   </div>
+</div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />

@@ -9,7 +9,8 @@ from flask_bcrypt import Bcrypt
 from flask_mail import Mail, Message
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_admin import Admin
+from flask_admin import Admin, AdminIndexView, expose
+from flask_admin.menu import MenuLink
 from flask_admin.contrib.sqla import ModelView
 from flask_wtf.csrf import CSRFProtect
 from flask_cors import CORS
@@ -37,17 +38,30 @@ serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"]
+    default_limits=["200 per day", "100 per hour"]
 )
 
 # Admin panel
-admin = Admin(app, name='GeoMFA Admin', template_mode='bootstrap3')
+class MyAdminIndexView(AdminIndexView):
+    @expose('/')
+    def index(self):
+        if not (current_user.is_authenticated and current_user.is_admin):
+            return redirect(url_for('login'))  # Adjust as per your app
+        return super(MyAdminIndexView, self).index()
+    
+admin = Admin(app, name='GeoMFA Admin', index_view=MyAdminIndexView(), template_mode='bootstrap3')
 class AdminModelView(ModelView):
     def is_accessible(self):
         return current_user.is_authenticated and current_user.is_admin
     
 class UserModelView(ModelView):
     can_create = False
+    can_edit = True
+    can_delete = False
+
+    column_searchable_list = ('username',)
+    form_columns = ('totp_enabled',)
+    column_list = ('id', 'username', 'email', 'is_admin', 'totp_enabled')
 
     def is_accessible(self):
         return current_user.is_authenticated and current_user.is_admin
@@ -78,6 +92,7 @@ class LogModelView(ModelView):
 admin.add_view(UserModelView(User, db.session))
 admin.add_view(SafeZoneView(SafeZone, db.session))
 admin.add_view(LogModelView(AuthenticationLog, db.session))
+admin.add_link(MenuLink(name='Back to Dashboard', url='/dashboard'))
 
 @login_manager.user_loader
 def load_user(user_id):
